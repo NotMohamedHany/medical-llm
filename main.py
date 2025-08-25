@@ -185,6 +185,10 @@ medical_agent = AgentExecutor(agent=med_agent, tools=tools, verbose=False,return
 #APIS
 app = FastAPI(title="Medical Agent API")
 
+@app.get("/")
+async def root():
+    return {"greeting": "Hello, World!", "message": "Welcome to FastAPI!"}
+    
 class Query(BaseModel):
     question: str
 @app.post("/ask")
