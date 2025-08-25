@@ -15,3 +15,4 @@ duckduckgo-search
 ddgs
 langchain-tavily
 uvicorn
+hypercorn
