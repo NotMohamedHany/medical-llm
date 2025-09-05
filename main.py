@@ -13,26 +13,31 @@ from langchain.tools import Tool,tool
 from langchain_core.output_parsers import StrOutputParser
 from langchain_tavily import TavilySearch
 
-from fastapi import FastAPI
+from fastapi import FastAPI,Body
 from pydantic import BaseModel
 
 #language
-prompt_language=ChatPromptTemplate.from_messages([
-    ("system","You are a professional translator. Your task is to translate recognize the language"),
-    ("human","First, automatically detect the input language just respond with the language no more comet or text or special txt :{input}")])
-llm=ChatGroq(model="llama-3.1-8b-instant")
-language_detect=prompt_language|llm|StrOutputParser()
+def detect_language(input_text: str) -> str:
+    prompt_language=ChatPromptTemplate.from_messages([
+        ("system","You are a professional translator. Your task is to translate recognize the language"),
+        ("human","First, automatically detect the input language just respond with the language no more comments or text or special txt :{input}")])
+    llm=ChatGroq(model="llama-3.1-8b-instant")
+    language_detect=prompt_language|llm|StrOutputParser()
+    return language_detect.invoke({"input":input_text})
 #-------------------------------------------------------
 #translate
-prompt_translate = ChatPromptTemplate.from_messages(["""You are a professional translator.\
+def translate_text(target_language: str, text: str) -> str:
+    prompt_translate = ChatPromptTemplate.from_messages(["""You are a professional translator.\
     Your task is to translate the following text into {target_language}.
 
-    - Automatically detect the input language.
     - Respond ONLY with the translated text, nothing else.
+    - No more comments or text or special txt                                                 
 
     Text: {text}
     """])
-translate = prompt_translate|llm|StrOutputParser()
+    llm=ChatGroq(model="llama-3.1-8b-instant")
+    translate = prompt_translate|llm|StrOutputParser()
+    return translate.invoke({"target_language": target_language, "text": text})
 
 #---------------------------------------------------------------------------------------
 #TOOLS
@@ -186,13 +191,27 @@ medical_agent = AgentExecutor(agent=med_agent, tools=tools, verbose=False,return
 app = FastAPI(title="Medical Agent API")
 
 class Query(BaseModel):
-    question: str
+    symptoms: str
+    vitals: str
+    gender: str
+    age: int
+
 @app.post("/ask")
 async def ask_agent(query: Query):
-    """Endpoint for Flutter to call"""
-    result = await medical_agent.ainvoke({"input": query.question})
-    language = await language_detect.ainvoke({"input": query.question})
+    prompt=f"""I am a {query.age} years old {query.gender}\n Symptoms: "{query.symptoms}"\n Vitals and measurements: "{query.vitals}" """
+    result = await medical_agent.ainvoke({"input": prompt})
+    language = detect_language(query.symptoms)
     language = language.strip()
-    out = await translate.ainvoke({"target_language": language, "text": result["output"]})
+    out = translate_text(language, result["output"])
     return {"answer": out, "steps": result["intermediate_steps"]}
 
+#-------------------------------------------------------
+@app.post("/advice")
+async def advice(vitals=Body()):
+    prompt_advice=ChatPromptTemplate.from_messages([
+    ("system","You are a professional coach life. Your task is to give an daily life medical advice and tips"),
+    ("human","That is my vitals :\"{input}\"  , give me a daily life medical advice and tips just give me the 3 advices no more text or special txt")])
+    llm=ChatGroq(model="llama-3.1-8b-instant")
+    advice_llm=prompt_advice|llm|StrOutputParser()
+    out= await advice_llm.ainvoke({"input":vitals.get("vitals")})
+    return {"advice": out}
