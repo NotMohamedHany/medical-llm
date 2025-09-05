@@ -3,15 +3,9 @@ langchain-community
 langchain-deepseek
 python-dotenv
 beautifulsoup4
-langchain-chroma
 langchain-ollama
 langchain-groq
 fastapi
-langserve
-transformers
-sentence-transformers
-wikipedia
-duckduckgo-search
-ddgs
 langchain-tavily
 uvicorn
+hypercorn
